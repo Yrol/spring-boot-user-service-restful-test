@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
 import java.util.List;
@@ -40,6 +41,9 @@ public class UserControllerIntegrationTest {
     @Autowired
     private TestRestTemplate testRestTemplate;
 
+    /**
+     * Test for creating users
+     * **/
     @Test
     @DisplayName("User can be created")
     void testCreateUser_whenValidDetailsProvided_returnsUserDetails() throws JSONException {
@@ -69,5 +73,32 @@ public class UserControllerIntegrationTest {
         Assertions.assertEquals(userDetailsRequestJson.getString("firstName"), createdUserDetails.getFirstName(), "The first name doesn't match");
         Assertions.assertEquals(userDetailsRequestJson.getString("lastName"), createdUserDetails.getLastName(), "The last name doesn't match");
         Assertions.assertEquals(userDetailsRequestJson.getString("email"), createdUserDetails.getEmail(), "The email doesn't match");
+    }
+
+    /**
+     * Attempting to get users without a JWT
+     * **/
+    @Test
+    @DisplayName("GET /users requires JWT")
+    void testGetUsers_whenMissigJWT_returns403() {
+        // Arrange
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "Application/json");
+
+        HttpEntity requestEntity = new HttpEntity(null, headers);
+
+        // Act
+        /**
+         * Sending an HTTP GET request
+         * Returning a List of users (of type UserRest)
+         * **/
+        ResponseEntity<List<UserRest>> response = testRestTemplate.exchange("/users",
+                HttpMethod.GET,
+                requestEntity,
+                new ParameterizedTypeReference<List<UserRest>>() {
+                });
+
+        // Assert
+        Assertions.assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode(), "HTTP code 403 should've been returned.");
     }
 }
