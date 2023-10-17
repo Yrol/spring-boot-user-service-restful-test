@@ -1,6 +1,8 @@
 package blog.yrol.junit.ui.controllers;
 
+import blog.yrol.sceurity.SecurityConstants;
 import blog.yrol.ui.response.UserRest;
+import io.jsonwebtoken.lang.Assert;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Assertions;
@@ -100,5 +102,73 @@ public class UserControllerIntegrationTest {
 
         // Assert
         Assertions.assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode(), "HTTP code 403 should've been returned.");
+    }
+
+    @Test
+    @DisplayName("/login works")
+    void testUserLogin_whenValidCredentialsProvided_returnsJWTinAuthorizationHeader() throws JSONException {
+        // Arrange
+
+        String email = "john@cena.com";
+        String password = "12345678";
+
+        /**
+         * User Create request
+         * **/
+        HttpEntity<String> userCreateRequest = this.createUser("John", "Cena", email, password, password);
+
+
+        /**
+         * Login request
+         * **/
+        JSONObject loginCredentials = new JSONObject();
+        loginCredentials.put("email", email);
+        loginCredentials.put("password", password);
+
+        HttpEntity<String> loginRequest = new HttpEntity<>(loginCredentials.toString());
+
+        // Act
+        /**
+         * Creating the user first
+         * **/
+        testRestTemplate.postForEntity("/users", userCreateRequest, UserRest.class);
+
+        /**
+         * Attempting to login using the newly created user
+         * The authentication post endpoint (/users/login) set up in: src/main/java/blog/yrol/sceurity/WebSecurity.java
+         * **/
+        ResponseEntity response = testRestTemplate.postForEntity("/users/login", loginRequest, null);
+
+        // Assert
+        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode(), "HTTP status code should be 200");
+
+        /**
+         * Making sure the Authorization header is not null
+         * **/
+        Assertions.assertNotNull(response.getHeaders().
+                        getValuesAsList(SecurityConstants.HEADER_STRING).get(0),
+                "Response should contain Authorization header with JWT");
+
+        /**
+         * Getting the User ID that has been added to the header
+         * **/
+        Assertions.assertNotNull(response.getHeaders().
+                getValuesAsList("UserID").get(0), "Response should contain UserID in teh header");
+    }
+
+    private HttpEntity<String> createUser(String firstName, String lastName, String email, String password, String repeatPassword) throws JSONException {
+
+        JSONObject userDetailsRequestJson = new JSONObject();
+        userDetailsRequestJson.put("firstName", firstName);
+        userDetailsRequestJson.put("lastName", lastName);
+        userDetailsRequestJson.put("email", email);
+        userDetailsRequestJson.put("password", password);
+        userDetailsRequestJson.put("repeatPassword", repeatPassword);
+
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        httpHeaders.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        return new HttpEntity<>(userDetailsRequestJson.toString(), httpHeaders);
     }
 }
