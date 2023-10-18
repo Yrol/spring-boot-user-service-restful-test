@@ -18,7 +18,6 @@ public class UserServicesRest implements CommandLineRunner {
         SpringApplication.run(UserServicesRest.class);
     }
 
-
     @Bean
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
@@ -28,7 +27,6 @@ public class UserServicesRest implements CommandLineRunner {
     public SpringApplicationContext springApplicationContext() {
         return new SpringApplicationContext();
     }
-
 
     @Override
     public void run(String... args) throws Exception {
