@@ -2,7 +2,6 @@ package blog.yrol.junit.ui.controllers;
 
 import blog.yrol.sceurity.SecurityConstants;
 import blog.yrol.ui.response.UserRest;
-import io.jsonwebtoken.lang.Assert;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Assertions;
@@ -111,11 +110,12 @@ public class UserControllerIntegrationTest {
 
         String email = "john@cena.com";
         String password = "12345678";
+        String authorizationToken;
 
         /**
          * User Create request
          * **/
-        HttpEntity<String> userCreateRequest = this.createUser("John", "Cena", email, password, password);
+        this.createUser("John", "Cena", email, password, password);
 
 
         /**
@@ -129,15 +129,15 @@ public class UserControllerIntegrationTest {
 
         // Act
         /**
-         * Creating the user first
-         * **/
-        testRestTemplate.postForEntity("/users", userCreateRequest, UserRest.class);
-
-        /**
          * Attempting to login using the newly created user
          * The authentication post endpoint (/users/login) set up in: src/main/java/blog/yrol/sceurity/WebSecurity.java
          * **/
-        ResponseEntity response = testRestTemplate.postForEntity("/users/login", loginRequest, null);
+        ResponseEntity<Object> response = testRestTemplate.postForEntity("/users/login", loginRequest, null);
+
+        authorizationToken = response.getHeaders().
+                getValuesAsList(SecurityConstants.HEADER_STRING).get(0);
+
+        System.out.println(authorizationToken);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode(), "HTTP status code should be 200");
@@ -145,8 +145,7 @@ public class UserControllerIntegrationTest {
         /**
          * Making sure the Authorization header is not null
          * **/
-        Assertions.assertNotNull(response.getHeaders().
-                        getValuesAsList(SecurityConstants.HEADER_STRING).get(0),
+        Assertions.assertNotNull(authorizationToken,
                 "Response should contain Authorization header with JWT");
 
         /**
@@ -156,7 +155,58 @@ public class UserControllerIntegrationTest {
                 getValuesAsList("UserID").get(0), "Response should contain UserID in teh header");
     }
 
-    private HttpEntity<String> createUser(String firstName, String lastName, String email, String password, String repeatPassword) throws JSONException {
+    @Test
+    @DisplayName("GET /users works")
+    void testGetUser_whenValidJWTProvided_returnsUsers() throws JSONException {
+
+        // Arrange
+        String email = "john@cena.com";
+        String password = "12345678";
+        String authorizationToken;
+
+        /**
+         * User Create request
+         * **/
+        this.createUser("John", "Cena", email, password, password);
+
+        /**
+         * Login request
+         * **/
+        JSONObject loginCredentials = new JSONObject();
+        loginCredentials.put("email", email);
+        loginCredentials.put("password", password);
+
+        HttpEntity<String> loginRequest = new HttpEntity<>(loginCredentials.toString());
+
+        ResponseEntity<Object> loginResponse = testRestTemplate.postForEntity("/users/login", loginRequest, null);
+
+        authorizationToken = loginResponse.getHeaders().
+                getValuesAsList(SecurityConstants.HEADER_STRING).get(0);
+
+
+        // Arrange
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.setBearerAuth(authorizationToken);
+
+        HttpEntity getUsersHttpEntity = new HttpEntity(headers);
+
+        // Act
+        ResponseEntity<List<UserRest>> getUsersResponse = testRestTemplate.exchange("/users",
+                HttpMethod.GET,
+                getUsersHttpEntity,
+                new ParameterizedTypeReference<List<UserRest>>() {
+                });
+
+        // Assert check for the response code
+        Assertions.assertEquals(HttpStatus.OK, getUsersResponse.getStatusCode());
+
+        // Assert check for the list of users (the users created at the beginning of this test case should exist / returned)
+        Assertions.assertTrue(getUsersResponse.getBody().size() == 1, "There should be exactly one user in the list");
+    }
+
+
+    private ResponseEntity<UserRest> createUser(String firstName, String lastName, String email, String password, String repeatPassword) throws JSONException {
 
         JSONObject userDetailsRequestJson = new JSONObject();
         userDetailsRequestJson.put("firstName", firstName);
@@ -169,6 +219,8 @@ public class UserControllerIntegrationTest {
         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
         httpHeaders.setAccept(List.of(MediaType.APPLICATION_JSON));
 
-        return new HttpEntity<>(userDetailsRequestJson.toString(), httpHeaders);
+        HttpEntity<String> request = new HttpEntity<>(userDetailsRequestJson.toString(), httpHeaders);
+
+        return testRestTemplate.postForEntity("/users", request, UserRest.class);
     }
 }
