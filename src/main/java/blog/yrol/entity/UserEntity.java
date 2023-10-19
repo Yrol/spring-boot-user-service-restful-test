@@ -13,7 +13,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name="users")
+@Table(name = "users")
 public class UserEntity implements Serializable {
 
     private static final long serialVersionUID = 5313493413859894403L;
@@ -22,19 +22,19 @@ public class UserEntity implements Serializable {
     @GeneratedValue
     private long id;
 
-    @Column(nullable=false)
+    @Column(nullable = false, unique = true)
     private String userId;
 
-    @Column(nullable=false, length=50)
+    @Column(nullable = false, length = 50)
     private String firstName;
 
-    @Column(nullable=false, length=50)
+    @Column(nullable = false, length = 50)
     private String lastName;
 
-    @Column(nullable=false, length=120)
+    @Column(nullable = false, length = 120)
     private String email;
 
-    @Column(nullable=false)
+    @Column(nullable = false)
     private String encryptedPassword;
 
 }
